@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Калькулятор печати</title>
+<style>
+/* ===== CSS калькулятора ===== */
+body { margin:0; padding:0; font-family: 'Montserrat', sans-serif; background-color:#ffffff; }
+.calc-wrap { padding:20px; }
+.calc-title { font-family: 'Press Start 2P', cursive; font-size:28px; text-align:center; line-height:1; margin:0; }
+.calc-title .title-main { color:#ff7aca; display:block; margin-bottom:40px; }
+.calc-title .title-sub { color:#222; display:block; }
+.calc-block { background-color:#ffffff; padding:16px 0; margin-bottom:20px; }
+.section-title { font-size:16px; font-weight:600; margin-top:24px; margin-bottom:24px; }
+.section-dtf { color:#ff7aca; font-weight:500; }
+.section-plotter { color:#b9f260; font-weight:500; }
+.calc-row label { font-size:14px; font-weight:400; color:#333; display:block; margin-bottom:6px; }
+input[type="checkbox"], input[type="radio"] { appearance:none; -webkit-appearance:none; width:18px; height:18px; border:2px solid #ccc; position:relative; cursor:pointer; margin-right:6px; transition: all 0.2s ease; }
+input[type="checkbox"] { border-radius:4px; }
+input[type="radio"] { border-radius:50%; }
+input[type="checkbox"]:checked, input[type="radio"]:checked { background-color:#ff7aca; border-color:#ff7aca; }
+input[type="checkbox"]:hover, input[type="radio"]:hover { border-color:#ff7aca; }
+input[type="checkbox"]:checked::after { content:''; position:absolute; top:3px; left:5px; width:4px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+input[type="radio"]:checked::after { content:''; position:absolute; top:4px; left:4px; width:8px; height:8px; border-radius:50%; background-color:#fff; }
+input[type="text"], input[type="number"] { font-family:'Montserrat', sans-serif; font-size:14px; font-weight:400; padding:6px 8px; border:1px solid #ccc; border-radius:6px; background-color:#fff; color:#222; }
+input[type="range"] { width:260px; accent-color:#222; }
+.total-box { font-weight:600; font-size:16px; padding:12px; margin-top:12px; background-color:#ffffff; color:#222; }
+.quantity { display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+#bulkDiscountMsg { color:#ff7aca; font-weight:600; margin-top:6px; display:none; }
+</style>
+</head>
+<body>
+
+<div class="calc-wrap">
+  <h2 class="calc-title">
+    <span class="title-main">Калькулятор печати</span><br>
+    <span class="title-sub">- быстрый расчет</span>
+  </h2>
+
+  <div class="calc-block">
+    <!-- На чем печатаем -->
+    <div class="calc-row">
+      <div class="section-title">На чем печатаем</div>
+      <label><input type="radio" name="product" value="450"> Футболка базовая (450р)</label>
+      <label><input type="radio" name="product" value="550"> Футболка оверсайз (550р)</label>
+      <label><input type="radio" name="product" value="250"> Шопер (250р)</label>
+      <label><input type="radio" name="product" value="0"> На своих вещах <input type="text" placeholder="Название вашей вещи"></label>
+    </div>
+
+    <!-- DTF-печать -->
+    <div class="calc-row">
+      <div class="section-title section-dtf">DTF-печать <span>(можно выбрать несколько)</span></div>
+      <label><input type="checkbox" value="270"> A6 размер (до 10,5×14,8см)</label>
+      <label><input type="checkbox" value="310"> A5 размер (до 14,8×21см)</label>
+      <label><input type="checkbox" value="400"> A4 размер (до 21×30см)</label>
+      <label><input type="checkbox" value="500"> A3 размер (до 30×42см)</label>
+    </div>
+
+    <!-- Плоттерная резка -->
+    <div class="calc-row">
+      <div class="section-title section-plotter">Плоттерная резка <span>(можно выбрать несколько)</span></div>
+      <label><input type="checkbox" value="350"> A6 размер (до 10,5×14,8см)</label>
+      <label><input type="checkbox" value="450"> A5 размер (до 14,8×21см)</label>
+      <label><input type="checkbox" value="580"> A4 размер (до 21×30см)</label>
+      <label><input type="checkbox" value="700"> A3 размер (до 30×42см)</label>
+    </div>
+
+    <!-- Макет -->
+    <div class="calc-row">
+      <div class="section-title">Готовый макет</div>
+      <label><input type="radio" name="design" value="0"> Да, есть готовый макет (0р)</label>
+      <label><input type="radio" name="design" value="100"> Да, но может потребоваться корректировка (100р)</label>
+      <label><input type="radio" name="design" value="300"> Нет макета (300р)</label>
+    </div>
+
+    <!-- Количество изделий -->
+    <div class="calc-row quantity">
+      <label for="quantity">Количество изделий:</label>
+      <input type="number" id="quantity" name="quantity" value="1" min="1" max="100">
+      <input type="range" id="quantityRange" min="1" max="100" value="1">
+    </div>
+
+    <!-- Подсказка опта -->
+    <div id="bulkDiscountMsg">Скидка 28% на печать применена!</div>
+
+    <!-- Итог -->
+    <div class="total-box">
+      Итого: <span id="totalPrice">0</span> ₽
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== JS калькулятора =====
+const quantityInput = document.getElementById('quantity');
+const quantityRange = document.getElementById('quantityRange');
+const totalPrice = document.getElementById('totalPrice');
+const bulkMsg = document.getElementById('bulkDiscountMsg');
+
+function calculateTotal() {
+  let basePrice = 0, printPrice = 0, designPrice = 0;
+
+  const productRadio = document.querySelector('input[name="product"]:checked');
+  if(productRadio) basePrice = parseInt(productRadio.value);
+
+  document.querySelectorAll('input[type="checkbox"]:checked').forEach(chk => printPrice += parseInt(chk.value));
+
+  const designRadio = document.querySelector('input[name="design"]:checked');
+  if(designRadio) designPrice = parseInt(designRadio.value);
+
+  let quantity = parseInt(quantityInput.value);
+
+  if(quantity >= 15) { printPrice *= 0.72; bulkMsg.style.display='block'; }
+  else { bulkMsg.style.display='none'; }
+
+  let total = (basePrice + printPrice) * quantity + designPrice;
+  totalPrice.innerText = Math.round(total);
+}
+
+quantityInput.addEventListener('input', () => { quantityRange.value = quantityInput.value; calculateTotal(); });
+quantityRange.addEventListener('input', () => { quantityInput.value = quantityRange.value; calculateTotal(); });
+document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => el.addEventListener('change', calculateTotal));
+calculateTotal();
+</script>
+
+</body>
+</html>
