@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Калькулятор печати</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== Scoped reset & base (only inside #calc-root) ===== */
+    :root { --brand-pink: #ff7aca; --brand-green: #b9f260; --text:#222; --muted:#666; --bg:#ffffff; --maxw:900px; }
+
+    html,body{height:100%; margin:0; padding:0; background:var(--bg); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+    /* ensure iframe content doesn't inherit outside styles */
+    #calc-root *{box-sizing:border-box}
+    #calc-root{font-family:'Montserrat', sans-serif; color:var(--text); background:var(--bg); padding:18px 24px;}
+
+    /* wrapper centering */
+    #calc-root .calc-wrapper{max-width:var(--maxw); margin:0 auto; width:100%;}
+
+    /* title */
+    .calc-title{ text-align:center; margin:0 0 8px 0; line-height:1; }
+    .calc-title .title-main{ font-family:'Press Start 2P', cursive; font-size:58px; color:var(--brand-pink); display:block; margin-bottom:0 px; font-weight:400; }
+    .calc-title .title-sub{ font-family:'Press Start 2P', cursive; font-size:38px; color:var(--text); display:block; margin:0 0 0 px 0; font-weight:400; }
+
+    /* block */
+    .calc-block{ background:var(--bg); padding:0; margin-bottom:20px; }
+
+    /* section title */
+    .section-title{ font-size:16px; font-weight:600; margin:24px 0; color:var(--text); }
+
+    /* special colored section titles (DTF/Plotter) - Medium weight */
+    .section-dtf{ color:var(--brand-pink); font-weight:800; display:inline-block; }
+    .section-plotter{ color:var(--brand-green); font-weight:800; display:inline-block; }
+
+    /* rows & labels */
+    .calc-row{ margin:0 0 6px 0; }
+    .field-group{ display:flex; flex-direction:column; gap:8px; }
+    label { font-size:14px; font-weight:400; color:#333; cursor:pointer; display:flex; align-items:center; gap:8px; }
+
+    /* inputs */
+    input[type="text"], input[type="number"]{
+      font-family:'Montserrat',sans-serif; font-size:14px; padding:6px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; color:var(--text);
+    }
+    /* range styling (webkit + firefox) */
+    .qty-range{ width:260px; -webkit-appearance:none; appearance:none; height:6px; border-radius:6px; background:#e6e6e6; outline:none; }
+    .qty-range::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--text); cursor:pointer; box-shadow:0 0 0 4px rgba(0,0,0,0.04); }
+    .qty-range::-moz-range-thumb{ width:14px; height:14px; border-radius:50%; background:var(--text); cursor:pointer; }
+
+    /* checkbox / radio modern look */
+    .choice-input{ --size:18px; width:var(--size); height:var(--size); display:inline-block; position:relative; flex:0 0 var(--size); }
+    input[type="checkbox"], input[type="radio"]{ display:none; }
+    .fake-checkbox, .fake-radio {
+      width:var(--size); height:var(--size); border:2px solid #ccc; display:inline-block; border-radius:4px; position:relative; transition:all .15s ease; background:#fff;
+    }
+    .fake-radio{ border-radius:50%; }
+    /* checked states */
+    input[type="checkbox"]:checked + .fake-checkbox,
+    input[type="radio"]:checked + .fake-radio {
+      background:var(--brand-pink); border-color:var(--brand-pink);
+    }
+    /* check icon for checkbox */
+    .fake-checkbox.checked::after{
+      content:''; position:absolute; left:5px; top:2px; width:4px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+    }
+    /* inner dot for radio */
+    .fake-radio.checked::after{
+      content:''; position:absolute; left:4px; top:4px; width:8px; height:8px; border-radius:50%; background:#fff;
+    }
+
+    /* layout for groups of choices */
+    .choices-inline{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+
+    /* small hint text (like "(можно выбрать несколько)") */
+    .hint{ font-size:12px; color:var(--muted); font-weight:400; margin-left:6px; display:inline-block; vertical-align:middle; }
+
+    /* quantity area */
+    .quantity-row{ display:flex; gap:12px; align-items:center; margin-top:6px; }
+    .quantity-row input[type="number"]{ width:88px; }
+
+    /* total box */
+    .total-box{ margin-top:16px; font-size:18px; font-weight:600; color:var(--text); padding:10px 12px; background:transparent; border-radius:8px; }
+
+    /* bulk message */
+    .bulk-msg{ color:var(--brand-pink); font-weight:600; margin-top:8px; display:none; }
+
+    /* responsive */
+    @media (max-width:520px){
+      .qty-range{ width:160px; }
+      .calc-title .title-main, .calc-title .title-sub{ font-size:20px; }
+      #calc-root{ padding:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="calc-root" aria-label="Калькулятор печати">
+    <div class="calc-wrapper">
+
+      <!-- Title -->
+      <header class="calc-title" role="heading" aria-level="1">
+        <span class="title-main">Калькулятор печати</span>
+        <span class="title-sub">- быстрый расчет</span>
+      </header>
+
+      <!-- Calculator block -->
+      <section class="calc-block" aria-label="Форма расчёта">
+
+        <!-- 1) Product -->
+        <div class="calc-row">
+          <div class="section-title">На чем печатаем</div>
+          <div class="field-group">
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="product" value="450" checked>
+                <span class="fake-radio checked" aria-hidden="true"></span>
+              </span>
+              Футболка базовая (450₽)
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="product" value="550">
+                <span class="fake-radio" aria-hidden="true"></span>
+              </span>
+              Футболка оверсайз (550₽)
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="product" value="250">
+                <span class="fake-radio" aria-hidden="true"></span>
+              </span>
+              Шопер (250₽)
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="product" value="0">
+                <span class="fake-radio" aria-hidden="true"></span>
+              </span>
+              На своих вещах
+              <input type="text" id="ownDesc" placeholder="Название вашей вещи" style="margin-left:10px;">
+            </label>
+          </div>
+        </div>
+
+        <!-- 2) DTF -->
+        <div class="calc-row">
+          <div class="section-title section-dtf">DTF-печать <span class="hint">(можно выбрать несколько)</span></div>
+          <div class="choices-inline" role="group" aria-label="DTF размеры">
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="dtf" value="270">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A6 (до 10,5×14,8см) — 270₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="dtf" value="310">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A5 (до 14,8×21см) — 310₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="dtf" value="400">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A4 (до 21×30см) — 400₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="dtf" value="500">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A3 (до 30×42см) — 500₽
+            </label>
+          </div>
+        </div>
+
+        <!-- 3) Plotter -->
+        <div class="calc-row">
+          <div class="section-title section-plotter">Плоттерная резка <span class="hint">(можно выбрать несколько)</span></div>
+          <div class="choices-inline" role="group" aria-label="Плоттер размеры">
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="plotter" value="350">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A6 — 350₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="plotter" value="450">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A5 — 450₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="plotter" value="580">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A4 — 580₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="checkbox" name="plotter" value="700">
+                <span class="fake-checkbox" aria-hidden="true"></span>
+              </span>
+              A3 — 700₽
+            </label>
+          </div>
+        </div>
+
+        <!-- 4) Artwork -->
+        <div class="calc-row">
+          <div class="section-title">Готовый макет</div>
+          <div class="field-group">
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="design" value="0" checked>
+                <span class="fake-radio checked" aria-hidden="true"></span>
+              </span>
+              Да, есть готовый макет — 0₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="design" value="100">
+                <span class="fake-radio" aria-hidden="true"></span>
+              </span>
+              Да, но может потребоваться корректировка — 100₽
+            </label>
+
+            <label>
+              <span class="choice-input">
+                <input type="radio" name="design" value="300">
+                <span class="fake-radio" aria-hidden="true"></span>
+              </span>
+              Нет макета — 300₽
+            </label>
+          </div>
+        </div>
+
+        <!-- 5) Quantity -->
+        <div class="calc-row">
+          <div class="section-title">Количество изделий</div>
+          <div class="quantity-row">
+            <input type="range" id="quantityRange" class="qty-range" min="1" max="100" value="1" aria-label="Количество">
+            <input type="number" id="quantity" name="quantity" min="1" max="100" value="1" aria-label="Количество (числом)">
+          </div>
+
+          <div id="bulkDiscount" class="bulk-msg" aria-live="polite">Скидка 28% на печать применена!</div>
+        </div>
+
+        <!-- Total -->
+        <div class="total-box" aria-live="polite">Итого: <span id="totalPrice">0</span> ₽</div>
+      </section>
+    </div>
+  </div>
+
+<script>
+/* ===== JS: Логика расчёта (встроено в файл по твоему запросу) ===== */
+(function(){
+  const root = document.getElementById('calc-root');
+  if(!root) return;
+
+  const qtyRange = root.querySelector('#quantityRange');
+  const qtyNumber = root.querySelector('#quantity');
+  const totalEl = root.querySelector('#totalPrice');
+  const bulkMsg = root.querySelector('#bulkDiscount');
+
+  // helpers
+  const toNum = v => Number(v) || 0;
+  const formatRub = v => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  function getSelectedProductPrice(){
+    const el = root.querySelector('input[name="product"]:checked');
+    return el ? toNum(el.value) : 0;
+  }
+  function getPrintSum(){
+    let sum = 0;
+    // all checked dtf
+    root.querySelectorAll('input[name="dtf"]:checked').forEach(chk => sum += toNum(chk.value));
+    // all checked plotter
+    root.querySelectorAll('input[name="plotter"]:checked').forEach(chk => sum += toNum(chk.value));
+    return sum;
+  }
+  function getDesignCost(){
+    const el = root.querySelector('input[name="design"]:checked');
+    return el ? toNum(el.value) : 0;
+  }
+
+  // update fake checkbox visuals (simple)
+  function refreshFakeStates(){
+    root.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(inp => {
+      const fake = inp.nextElementSibling;
+      if(!fake) return;
+      if(inp.checked){
+        fake.classList.add('checked');
+      } else {
+        fake.classList.remove('checked');
+      }
+    });
+  }
+
+  // main calc
+  function calculate(){
+    const base = getSelectedProductPrice();
+    let printSum = getPrintSum();
+    const design = getDesignCost();
+    let qty = Math.max(1, toNum(qtyNumber.value));
+
+    // apply bulk on print only if qty >= 15
+    if(qty >= 15 && printSum > 0){
+      printSum = printSum * 0.72; // 28% off
+      bulkMsg.style.display = 'block';
+    } else {
+      bulkMsg.style.display = 'none';
+    }
+
+    const total = (base + printSum) * qty + design;
+    totalEl.textContent = formatRub(total);
+  }
+
+  // sync inputs and wire events
+  qtyRange.addEventListener('input', () => {
+    qtyNumber.value = qtyRange.value;
+    calculate();
+  });
+  qtyNumber.addEventListener('input', () => {
+    let v = toNum(qtyNumber.value);
+    if(v < 1) v = 1;
+    if(v > 100) v = 100;
+    qtyNumber.value = v;
+    qtyRange.value = v;
+    calculate();
+  });
+
+  // when product/checkbox/radio change
+  root.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      refreshFakeStates();
+      calculate();
+    });
+  });
+
+  // initial visual sync and calc
+  refreshFakeStates();
+  calculate();
+
+  // accessibility: allow keyboard change on fake elements via labels (handled by native inputs)
+})();
+</script>
+</body>
+</html>
